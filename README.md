@@ -313,12 +313,22 @@ POWER_OUTPUT_ALIAS = sensor.power_out_1,sensor.power_out_2,sensor.power_out_3
 
 ### VZLogger
 
+Example: Variant with total power
 ```ini
 [VZLOGGER]
 IP = 192.168.1.106
 PORT = 8080
-UUID = your-uuid
+UUID = your-uuid-total-power
 ```
+
+Example: Variant with 3 phases
+```ini
+[VZLOGGER]
+IP = 192.168.1.106
+PORT = 8080
+UUID = your-uuid-phase-1, your-uuid-phase-2, your-uuid-phase-3
+```
+
 
 ### ESPHome
 
