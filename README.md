@@ -455,6 +455,24 @@ CURRENT_POWER_ENTITY = sensor.current_power
 # No NETMASK specified - will match all clients (0.0.0.0/0)
 ```
 
+### Wrappers / Filters
+
+You can configure wrappers/filters which are using other powermeters as source for reading power values. The wrapper can then modify the power values of the original powermeter.
+A wrapped powermeter is not available for providing data to a Shelly/CT. Each Wrapper has an config entry called "WRAPPING", which needs to refer to the section of the powermeter
+to be warpped. Chaining of multiple wrappers is possible.
+
+The ANTI_WINDUP wrapper can be used for Marstek Venus devices to prevent them from oscillating. The powermeter being wrapped should deliver values every second.
+
+```ini
+[ANTI_WINDUP]
+FAST = 1.5
+SLOW = 0.5
+DAMPING = 0.7
+THRESHOLD_LOW = 25
+THRESHOLD_HIGH = 200
+WRAPPING = VZLOGGER
+```
+
 ## Node-RED Implementation
 
 This project also provides a Node-RED implementation, allowing integration with various smart meters. The Node-RED flow is available in the `nodered.json` file. Note that the Node-RED implementation only supports emulating a CT001.

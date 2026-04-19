@@ -24,6 +24,8 @@ from powermeter import (
     JsonHttpPowermeter,
     TQEnergyManager,
     ThrottledPowermeter,
+    AntiWindup,
+    LowPassFilter,
 )
 
 SHELLY_SECTION = "SHELLY"
@@ -39,6 +41,8 @@ AMIS_READER_SECTION = "AMIS_READER"
 MODBUS_SECTION = "MODBUS"
 JSON_HTTP_SECTION = "JSON_HTTP"
 TQ_EM_SECTION = "TQ_EM"
+ANTI_WINDUP_SECTION = "ANTI_WINDUP"
+LOW_PASS_FILTER_SECTION = "LOW_PASS_FILTER"
 
 
 class ClientFilter:
@@ -59,12 +63,13 @@ class ClientFilter:
 def read_all_powermeter_configs(
     config: configparser.ConfigParser,
 ) -> List[Tuple[Powermeter, ClientFilter]]:
-    powermeters = []
+    powermeters = {}
     global_throttle_interval = config.getfloat(
         "GENERAL", "THROTTLE_INTERVAL", fallback=0.0
     )
 
     for section in config.sections():
+        if "WRAPPING" in config[section]: continue
         powermeter = create_powermeter(section, config)
         if powermeter is not None:
             section_throttle_interval = config.getfloat(
@@ -83,8 +88,20 @@ def read_all_powermeter_configs(
                 powermeter = ThrottledPowermeter(powermeter, section_throttle_interval)
 
             client_filter = create_client_filter(section, config)
-            powermeters.append((powermeter, client_filter))
-    return powermeters
+            powermeters[section] = (powermeter, client_filter)
+
+    for section in config.sections():
+        if "WRAPPING" not in config[section]: continue
+        powermeter = create_wrapping_powermeter(section, config, powermeters[config[section]["WRAPPING"]][0])
+        client_filter = create_client_filter(section, config)
+        powermeters[section] = (powermeter, client_filter)
+
+    for section in config.sections():
+        # remove all powermeters, that are wrapped by other PMs
+        if "WRAPPING" in config[section]: powermeters.pop(config[section]["WRAPPING"], None)
+
+    pms = list(powermeters.values())
+    return pms
 
 
 def create_client_filter(
@@ -94,6 +111,22 @@ def create_client_filter(
     netmasks = [IPv4Network(netmask) for netmask in netmasks.split(",")]
     return ClientFilter(netmasks)
 
+def create_wrapping_powermeter(section: str, config: configparser.ConfigParser, powermeter : Powermeter
+) -> Union[Powermeter, None]:
+    if section.startswith(ANTI_WINDUP_SECTION):
+        fast = float(config.get(section, "FAST"))
+        slow = float(config.get(section, "SLOW"))
+        threshold_low = int(config.get(section, "THRESHOLD_LOW"))
+        threshold_high = int(config.get(section, "THRESHOLD_HIGH"))
+        damping = float(config.get(section, "DAMPING"))
+        return AntiWindup(powermeter, fast, slow, threshold_low, threshold_high, damping)
+    if section.startswith(LOW_PASS_FILTER_SECTION):
+        slope_on = int(config.get(section, "SLOPE_ON"))
+        slope_off = int(config.get(section, "SLOPE_OFF"))
+        max_filter_time = float(config.get(section, "MAX_FILTER_TIME"))
+        return LowPassFilter(powermeter, slope_on, slope_off, max_filter_time)
+    else:
+        return None
 
 # Helper function to create a powermeter instance
 def create_powermeter(
