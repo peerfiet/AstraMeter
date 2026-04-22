@@ -6,7 +6,7 @@ from .shrdzm import Shrdzm
 from .emlog import Emlog
 from .iobroker import IoBroker
 from .homeassistant import HomeAssistant
-from .vzlogger import VZLogger
+from .vzlogger import VZLogger, VZLoggerListener
 from .amisreader import AmisReader
 from .modbus import ModbusPowermeter
 from .mqtt import MqttPowermeter
@@ -14,4 +14,4 @@ from .json_http import JsonHttpPowermeter
 from .script import Script
 from .throttling import ThrottledPowermeter
 from .tq_em import TQEnergyManager
-from .wrapper import AntiWindup, LowPassFilter
+from .wrapper import AntiWindup, LowPassFilter, HampelFilter

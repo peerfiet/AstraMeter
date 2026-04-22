@@ -16,6 +16,7 @@ from powermeter import (
     IoBroker,
     HomeAssistant,
     VZLogger,
+    VZLoggerListener,
     AmisReader,
     ModbusPowermeter,
     MqttPowermeter,
@@ -26,6 +27,7 @@ from powermeter import (
     ThrottledPowermeter,
     AntiWindup,
     LowPassFilter,
+    HampelFilter
 )
 
 SHELLY_SECTION = "SHELLY"
@@ -34,7 +36,8 @@ SHRDZM_SECTION = "SHRDZM"
 EMLOG_SECTION = "EMLOG"
 IOBROKER_SECTION = "IOBROKER"
 HOMEASSISTANT_SECTION = "HOMEASSISTANT"
-VZLOGGER_SECTION = "VZLOGGER"
+VZLOGGER_SECTION = "VZLOGGER_GETTER"
+VZLOGGER_LISTENER_SECTION = "VZLOGGER_LISTENER"
 SCRIPT_SECTION = "SCRIPT"
 ESPHOME_SECTION = "ESPHOME"
 AMIS_READER_SECTION = "AMIS_READER"
@@ -43,6 +46,7 @@ JSON_HTTP_SECTION = "JSON_HTTP"
 TQ_EM_SECTION = "TQ_EM"
 ANTI_WINDUP_SECTION = "ANTI_WINDUP"
 LOW_PASS_FILTER_SECTION = "LOW_PASS_FILTER"
+HAMPEL_FILTER_SECTION = "HAMPEL_FILTER"
 
 
 class ClientFilter:
@@ -119,12 +123,18 @@ def create_wrapping_powermeter(section: str, config: configparser.ConfigParser, 
         threshold_low = int(config.get(section, "THRESHOLD_LOW"))
         threshold_high = int(config.get(section, "THRESHOLD_HIGH"))
         damping = float(config.get(section, "DAMPING"))
-        return AntiWindup(powermeter, fast, slow, threshold_low, threshold_high, damping)
-    if section.startswith(LOW_PASS_FILTER_SECTION):
+        deadband = int(config.get(section, "DEADBAND"))
+        return AntiWindup(powermeter, fast, slow, threshold_low, threshold_high, damping, deadband)
+    elif section.startswith(LOW_PASS_FILTER_SECTION):
         slope_on = int(config.get(section, "SLOPE_ON"))
         slope_off = int(config.get(section, "SLOPE_OFF"))
         max_filter_time = float(config.get(section, "MAX_FILTER_TIME"))
         return LowPassFilter(powermeter, slope_on, slope_off, max_filter_time)
+    elif section.startswith(HAMPEL_FILTER_SECTION):
+        window = int(config.get(section, "WINDOW", fallback=10))
+        n_sigma = float(config.get(section, "N_SIGMA", fallback=3.0))
+        min_threshold = float(config.get(section, "MIN_THRESHOLD", fallback=50))
+        return HampelFilter(powermeter, window, n_sigma, min_threshold)
     else:
         return None
 
@@ -146,6 +156,8 @@ def create_powermeter(
         return create_homeassistant_powermeter(section, config)
     elif section.startswith(VZLOGGER_SECTION):
         return create_vzlogger_powermeter(section, config)
+    elif section.startswith(VZLOGGER_LISTENER_SECTION):
+        return create_vzlogger_listener_powermeter(section, config)
     elif section.startswith(SCRIPT_SECTION):
         return create_script_powermeter(section, config)
     elif section.startswith(ESPHOME_SECTION):
@@ -272,7 +284,18 @@ def create_vzlogger_powermeter(
     return VZLogger(
         config.get(section, "IP", fallback=""),
         config.get(section, "PORT", fallback=""),
-        config.get(section, "UUID", fallback=""),
+        config.get(section, "UUIDS", fallback=""),
+    )
+
+def create_vzlogger_listener_powermeter(
+    section: str, config: configparser.ConfigParser
+) -> Powermeter:
+    return VZLoggerListener(
+        config.get(section, "UUIDS"),
+        float(config.get(section, "TIMEOUT", fallback=1.1)),
+        config.get(section, "IP", fallback="0.0.0.0"),
+        int(config.get(section, "PORT", fallback=8088)),
+
     )
 
 

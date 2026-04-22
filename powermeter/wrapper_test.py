@@ -26,13 +26,13 @@ class TestAntiWindupWithVZLogger(unittest.TestCase):
         mock_get.return_value = mock_response
 
         vzlogger = VZLogger("192.168.1.9", "8088", "5,6,7")
-        aw = AntiWindup(vzlogger, 1.5, 0.5, 25, 150, 0.7)
+        aw = AntiWindup(vzlogger, 1.5, 0.5, 25, 150, 0.7, 20)
         self.assertEqual(aw.get_powermeter_watts(), [150, 300, 450])
         self.assertEqual([round(ii) for ii in aw.get_powermeter_watts()], [105, 210, 315])
 
         vzlogger = VZLogger("192.168.1.9", "8088", "1,2,3")
-        aw = AntiWindup(vzlogger, 1.5, 0.5, 25, 150, 0.7)
-        self.assertEqual(aw.get_powermeter_watts(), [0.5, 1, 1.5])
+        aw = AntiWindup(vzlogger, 1.5, 0.5, 25, 150, 0.7, 0)
+        self.assertEqual(aw.get_powermeter_watts(), [0, 1, 2])
 
 
 if __name__ == "__main__":
