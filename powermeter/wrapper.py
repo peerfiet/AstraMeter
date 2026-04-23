@@ -5,9 +5,16 @@ from config.logger import logger
 import statistics
 from collections import deque
 
-class LowPassFilter(Powermeter):
-    def __init__(self, powermeter, slope_on, slope_off, max_filter_time):
-        self._powermeter = powermeter
+class PowermeterWrapper(Powermeter):
+    def __init__(self, wrapped_powermeter : Powermeter):
+        self._wrapped_powermeter = wrapped_powermeter
+
+    def get_wrapped_powermeter_watts(self):
+        return self._wrapped_powermeter.get_powermeter_watts()
+
+class LowPassFilter(PowermeterWrapper):
+    def __init__(self, wrapped_powermeter, slope_on, slope_off, max_filter_time):
+        super(LowPassFilter, self).__init__(wrapped_powermeter)
         self._filtering = False
         self._last_power = [0, 0, 0]
         self._last_spike_time = 0
@@ -18,7 +25,7 @@ class LowPassFilter(Powermeter):
     
     def get_powermeter_watts(self):
         with self._lock:
-            powers = self._powermeter.get_powermeter_watts() 
+            powers = self.get_wrapped_powermeter_watts() 
             total = sum(powers)
             last_total = sum(self._last_power)
             diff = abs(total - last_total)
@@ -43,28 +50,36 @@ class LowPassFilter(Powermeter):
             return powers
 
 
-class AntiWindup(Powermeter):
-    def __init__(self, powermeter, fast, slow, threshold_low, threshold_high, damping, deadband):
-        self._powermeter = powermeter
-        self._deque = deque([[0, 0, 0]], maxlen=10)
+class DeadbandFilter(PowermeterWrapper):
+    def __init__(self, wrapped_powermeter, threshold):
+        super(DeadbandFilter, self).__init__(wrapped_powermeter)
+        self._threshold = threshold
+
+    def get_powermeter_watts(self):
+        powers = self.get_wrapped_powermeter_watts()
+        if abs(sum(powers)) <= self._threshold: powers = [0,0,0]
+        return powers
+
+
+class AntiWindup(PowermeterWrapper):
+    def __init__(self, wrapped_powermeter, fast, slow, threshold_low, threshold_high, damping):
+        super(AntiWindup, self).__init__(wrapped_powermeter)
+        self._last_powers = [0, 0, 0]
         self._fast = fast
         self._slow = slow
         self._threshold_low = threshold_low
         self._threshold_high = threshold_high
         self._damping = damping
-        self._deadband = deadband
         self._factor = slow
         self._lock = threading.Lock()
 
     def get_powermeter_watts(self):
         with self._lock:
-            powers = self._powermeter.get_powermeter_watts() 
+            powers = self.get_wrapped_powermeter_watts() 
 
             total = abs(sum(powers))
-            if total <= self._deadband: powers = [0,0,0]
-            total = abs(sum(powers))
-            if self._deque[-1] != powers:
-                self._deque.append(powers)
+            if self._last_powers != powers:
+                self._last_powers = powers
                 if total > self._threshold_low:
                     diff = min(total, self._threshold_high) - self._threshold_low
                     self._factor = ((diff/(self._threshold_high-self._threshold_low)) * (self._fast -self._slow)) + self._slow
@@ -78,7 +93,7 @@ class AntiWindup(Powermeter):
 
 """Hampel outlier-rejection powermeter wrapper."""
 
-class HampelFilter(Powermeter):
+class HampelFilter(PowermeterWrapper):
     """Rolling-median outlier filter for sum-of-phases power readings.
 
     Maintains a rolling window of the most recent ``window`` totals. When the
@@ -106,13 +121,13 @@ class HampelFilter(Powermeter):
         n_sigma: float = 3.0,
         min_threshold: float = 0.0,
     ) -> None:
+        super(HampelFilter, self).__init__(wrapped_powermeter)
         if window < 1:
             raise ValueError(f"Hampel window must be >= 1, got {window}")
         if n_sigma < 0:
             raise ValueError(f"Hampel n_sigma must be >= 0, got {n_sigma}")
         if min_threshold < 0:
             raise ValueError(f"Hampel min_threshold must be >= 0, got {min_threshold}")
-        self.wrapped_powermeter = wrapped_powermeter
         self._window: deque[float] = deque(maxlen=window)
         self._window_size = window
         self._n_sigma = n_sigma
@@ -124,7 +139,7 @@ class HampelFilter(Powermeter):
     #    self._window.clear()
 
     def get_powermeter_watts(self) -> list[float]:
-        raw_values = self.wrapped_powermeter.get_powermeter_watts()
+        raw_values = self.get_wrapped_powermeter_watts()
         if not raw_values:
             return []
 

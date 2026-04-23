@@ -14,4 +14,4 @@ from .json_http import JsonHttpPowermeter
 from .script import Script
 from .throttling import ThrottledPowermeter
 from .tq_em import TQEnergyManager
-from .wrapper import AntiWindup, LowPassFilter, HampelFilter
+from .wrapper import AntiWindup, LowPassFilter, HampelFilter, DeadbandFilter, PowermeterWrapper

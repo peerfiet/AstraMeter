@@ -19,11 +19,11 @@ def getPowerFromVZLoggerData(data, uuids):
     return powers
 
 class VZLogger(Powermeter):
-    def __init__(self, ip: str, port: str, uuid: str):
+    def __init__(self, uuids: str, ip: str, port: int):
         self.ip = ip
         self.port = port
         self.url = f"http://{self.ip}:{self.port}"
-        self.uuids = dict(zip([u.strip() for u in uuid.split(",")], [0,1,2]))
+        self.uuids = dict(zip([u.strip() for u in uuids.split(",")], [0,1,2]))
         self.session = requests.Session()
 
     def get_json(self):
@@ -34,7 +34,7 @@ class VZLogger(Powermeter):
         return getPowerFromVZLoggerData(data, self.uuids)
 
 class VZLoggerListener(Powermeter):
-    def __init__(self, uuids : str, timeout : float = 1.1, ip: str = "0.0.0.0", port: int = 8088):
+    def __init__(self, uuids : str, timeout : float, ip: str = "0.0.0.0", port: int = 8088):
 
         class VZLogger_DataHandler(http.server.BaseHTTPRequestHandler):
             vzlogger_listener = self

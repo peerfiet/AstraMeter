@@ -24,13 +24,13 @@ class TestVZLogger(unittest.TestCase):
         }
         mock_get.return_value = mock_response
 
-        vzlogger = VZLogger("192.168.1.9", "8088", "4")
+        vzlogger = VZLogger("4", "192.168.1.9", 8088)
         self.assertEqual(vzlogger.get_powermeter_watts(), [500, 0, 0])
 
-        vzlogger = VZLogger("192.168.1.9", "8088", "5,6,7")
+        vzlogger = VZLogger("5,6,7", "192.168.1.9", 8088)
         self.assertEqual(vzlogger.get_powermeter_watts(), [600, 700, 800])
 
-        vzlogger = VZLogger("192.168.1.9", "8088", "5, 6, 7")
+        vzlogger = VZLogger("5, 6, 7", "192.168.1.9", 8088)
         self.assertEqual(vzlogger.get_powermeter_watts(), [600, 700, 800])
 
 if __name__ == "__main__":
