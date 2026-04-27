@@ -128,9 +128,10 @@ def create_wrapping_powermeter(section: str, config: configparser.ConfigParser, 
         return AntiWindup(powermeter, fast, slow, threshold_low, threshold_high, damping)
     elif section.startswith(LOW_PASS_FILTER_SECTION):
         slope_on = config.getint(section, "SLOPE_ON")
+        slope_on_max_add = config.getint(section, "SLOPE_ON_MAX_ADD")
         slope_off = config.getint(section, "SLOPE_OFF")
         max_filter_time = config.getfloat(section, "MAX_FILTER_TIME")
-        return LowPassFilter(powermeter, slope_on, slope_off, max_filter_time)
+        return LowPassFilter(powermeter, slope_on, slope_off, max_filter_time, slope_on_max_add)
     elif section.startswith(HAMPEL_FILTER_SECTION):
         window = config.getint(section, "WINDOW", fallback=10)
         n_sigma = config.getint(section, "N_SIGMA", fallback=3.0)

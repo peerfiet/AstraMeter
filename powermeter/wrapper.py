@@ -13,12 +13,13 @@ class PowermeterWrapper(Powermeter):
         return self._wrapped_powermeter.get_powermeter_watts()
 
 class LowPassFilter(PowermeterWrapper):
-    def __init__(self, wrapped_powermeter, slope_on, slope_off, max_filter_time):
+    def __init__(self, wrapped_powermeter, slope_on, slope_off, max_filter_time, slope_on_max_add):
         super(LowPassFilter, self).__init__(wrapped_powermeter)
         self._filtering = False
         self._last_power = [0, 0, 0]
         self._last_spike_time = 0
         self._slope_on = slope_on
+        self._slope_on_max = slope_on + slope_on_max_add
         self._slope_off = slope_off
         self._max_filter_time = max_filter_time
         self._lock = threading.Lock()
@@ -30,8 +31,8 @@ class LowPassFilter(PowermeterWrapper):
             last_total = sum(self._last_power)
             diff = abs(total - last_total)
             if self._filtering:
-                if diff > self._slope_off: 
-                    if time.perf_counter() - self._last_spike_time <= self._max_filter_time:
+                if diff > self._slope_off:
+                    if (time.perf_counter() - self._last_spike_time <= self._max_filter_time) and diff < self._slope_on_max:
                         powers = self._last_power
                         logger.info(f"Filtering")
                     else:
@@ -41,7 +42,7 @@ class LowPassFilter(PowermeterWrapper):
                     logger.info(f"Stop filtering")
                     self._filtering = False
             else:
-                if diff > self._slope_on:
+                if diff > self._slope_on and diff < self._slope_on_max:
                     logger.info(f"Start filtering")
                     self._filtering = True
                     self._last_spike_time = time.perf_counter()
